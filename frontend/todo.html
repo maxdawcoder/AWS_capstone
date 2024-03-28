@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        ul {
+            list-style-type: none;
+        }
+        li {
+            margin: 5px 0;
+        }
+        button {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Todo App</h1>
+    <form id="task-form">
+        <input type="text" id="name" placeholder="Task name" required>
+        <select id="category">
+            <option value="Work">Work</option>
+            <option value="Personal">Personal</option>
+            <option value="School">School</option>
+            <option value="Others">Others</option>
+        </select>
+        <input type="date" id="dueDate" required>
+        <button type="submit">Add Task</button>
+    </form>
+    <ul id="task-list">
+        <!-- Tasks will be added here -->
+    </ul>
+
+    <script>
+        document.getElementById('task-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var name = document.getElementById('name').value;
+            var category = document.getElementById('category').value;
+            var dueDate = document.getElementById('dueDate').value;
+            var task = {name: name, category: category, dueDate: dueDate};
+            fetch('http://localhost:5000/task', {
+                method: 'POST',
+                body: JSON.stringify(task),
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                } else {
+                    addTaskToList(data);
+                    document.getElementById('name').value = '';
+                    document.getElementById('dueDate').value = '';
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        function addTaskToList(task) {
+            var taskList = document.getElementById('task-list');
+            var taskItem = document.createElement('li');
+            taskItem.textContent = task.name + ' (' + task.category + ') - ' + task.dueDate;
+            
+            // Delete button
+            var deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = function() {
+                fetch('http://localhost:5000/task/' + task.id, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.message) {
+                            alert(data.message);
+                        } else {
+                            taskItem.remove();
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            };
+            
+            // Update button
+            var updateButton = document.createElement('button');
+            updateButton.textContent = 'Update';
+            updateButton.onclick = function() {
+                var newName = prompt('Enter new task name:', task.name);
+                var newCategory = prompt('Enter new task category (Work, Personal, School, Others):', task.category);
+                var newDueDate = prompt('Enter new due date (YYYY-MM-DD):', task.dueDate);
+
+                // Check if the user input is not null, otherwise keep the existing value
+                newName = (newName !== null) ? newName : task.name;
+                newCategory = (newCategory !== null) ? newCategory : task.category;
+                newDueDate = (newDueDate !== null) ? newDueDate : task.dueDate;
+
+                var updatedTask = { name: newName, category: newCategory, dueDate: newDueDate };
+                fetch('http://localhost:5000/task/' + task.id, {
+                    method: 'PUT',
+                    body: JSON.stringify(updatedTask),
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
+                    } else {
+                        // Refresh the task list to show the updated task
+                        taskList.innerHTML = ''; // Clear the current list
+                        loadTasks(); // Reload the tasks
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            };
+
+            taskItem.appendChild(deleteButton);
+            taskItem.appendChild(updateButton);
+            taskList.appendChild(taskItem);
+        }
+
+        // Function to load tasks from the server and display them
+        function loadTasks() {
+            fetch('http://localhost:5000/task')
+                .then(response => response.json())
+                .then(tasks => {
+                    tasks.forEach(addTaskToList);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Load tasks on page load
+        loadTasks();
+    </script>
+</body>
+</html>
